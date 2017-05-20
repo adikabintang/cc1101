@@ -129,10 +129,28 @@
 #define CC1101_RCCTRL1_STATUS    0x3C        // Last RC Oscillator Calibration Result
 #define CC1101_RCCTRL0_STATUS    0x3D        // Last RC Oscillator Calibration Result
 
+#define BROADCAST_ADDRESS 0x00
+#define ACK_RESPONSE 0x06
+#define NAK_RESPONSE 0x15
+
+enum messageType {
+  ACK_PACKET = 0,
+  DATA_PACKET
+};
+
+struct CCPacket {
+  uint8_t destinationAddress;
+  uint8_t sourceAddress;
+  uint8_t payloadLength;
+  uint8_t payload[63];
+  uint8_t lqi;
+  uint8_t rssi;
+  messageType type;
+};
 
 class CC1101 {
 private:
-	unsigned long timeoutMs = 2000; //
+	unsigned long timeoutMs = 3000; //
 public:
 	CC1101();
   void init();
@@ -150,8 +168,10 @@ public:
 	void setTxState();
 	void setRxState();
 	void seteTxPowerAmp();
-	bool sendData(uint8_t destinationAddress, uint8_t data[], uint8_t dataLength);
-  uint8_t receiveData(uint8_t *payloadBuffer);
+	//bool sendData(uint8_t destinationAddress, uint8_t data[], uint8_t dataLength);
+  bool sendData(struct CCPacket *packet);
+  //uint8_t receiveData(uint8_t *payloadBuffer);
+  uint8_t receiveData(struct CCPacket *packet);
   void flushTxFifo();
 	void flushRxFifo();
 	void setIdle();
