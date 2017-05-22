@@ -105,56 +105,6 @@ void CC1101::writeBurstReg(uint8_t regAddr, uint8_t* buffer, uint8_t len) {
 
 void CC1101::setCCregs() {
 
-	// uint8_t registerSetting[47] = {
-	//     0x09, //buat CCA, 9 //0x07,  // IOCFG2        GDO2 Output Pin Configuration
-	//     0x2E,  // IOCFG1        GDO1 Output Pin Configuration
-	//     0x06,//0x07,//0x80,  // IOCFG0        GDO0 Output Pin Configuration
-	//     0x07,  // FIFOTHR       RX FIFO and TX FIFO Thresholds
-	//     0x57,  // SYNC1         Sync Word, High Byte
-	//     0x43,  // SYNC0         Sync Word, Low Byte
-	//     0x61, //0x3D,  // PKTLEN        Packet Length
-	//     0x0E,  // PKTCTRL1      Packet Automation Control
-	//     0x05,  // PKTCTRL0      Packet Automation Control
-	//     0x01,  // ADDR          Device Address
-	//     0x00,  // CHANNR        Channel Number
-	//     0x08,  // FSCTRL1       Frequency Synthesizer Control
-	//     0x00,  // FSCTRL0       Frequency Synthesizer Control
-	//     0x10,  // FREQ2         Frequency Control Word, High Byte
-	//     0xA7,  // FREQ1         Frequency Control Word, Middle Byte
-	//     0x62,  // FREQ0         Frequency Control Word, Low Byte
-	//     0x5B,  // MDMCFG4       Modem Configuration
-	//     0xF8,  // MDMCFG3       Modem Configuration
-	//     0x03,  // MDMCFG2       Modem Configuration
-	//     0x22,  // MDMCFG1       Modem Configuration
-	//     0xF8,  // MDMCFG0       Modem Configuration
-	//     0x47,  // DEVIATN       Modem Deviation Setting
-	//     0x07,  // MCSM2         Main Radio Control State Machine Configuration
-	//     0x0C, //0x1C, //diubah buat CCA, depannya 2, liat hal 81//0x0C,  // MCSM1         Main Radio Control State Machine Configuration
-	//     0x18,  // MCSM0         Main Radio Control State Machine Configuration
-	//     0x1D,  // FOCCFG        Frequency Offset Compensation Configuration
-	//     0x1C,  // BSCFG         Bit Synchronization Configuration
-	//     0xC7,  // AGCCTRL2      AGC Control
-	//     0x00,  // AGCCTRL1      AGC Control
-	//     0xB2,  // AGCCTRL0      AGC Control
-	//     0x02,  // WOREVT1       High Byte Event0 Timeout
-	//     0x26,  // WOREVT0       Low Byte Event0 Timeout
-	//     0x09,  // WORCTRL       Wake On Radio Control
-	//     0xB6,  // FREND1        Front End RX Configuration
-	//     0x10,  // FREND0        Front End TX Configuration
-	//     0xEA,  // FSCAL3        Frequency Synthesizer Calibration
-	//     0x2A,  // FSCAL2        Frequency Synthesizer Calibration
-	//     0x00,  // FSCAL1        Frequency Synthesizer Calibration
-	//     0x11,  // FSCAL0        Frequency Synthesizer Calibration
-	//     0x41,  // RCCTRL1       RC Oscillator Configuration
-	//     0x00,  // RCCTRL0       RC Oscillator Configuration
-	//     0x59,  // FSTEST        Frequency Synthesizer Calibration Control,
-	//     0x7F,  // PTEST         Production Test
-	//     0x3F,  // AGCTEST       AGC Test
-	//     0x81,  // TEST2         Various Test Settings
-	//     0x35,  // TEST1         Various Test Settings
-	//     0x09   // TEST0         Various Test Settings
-	// };
-
 	uint8_t panStamp[47] = {
 		0x2E,         // GDO2 Output Pin Configuration
 		0x2E,         // GDO1 Output Pin Configuration
@@ -163,7 +113,7 @@ void CC1101::setCCregs() {
 		0xB5,         // Synchronization word, high byte
 		0x47,         // Synchronization word, low byte
 		0x3D,         // Packet Length
-		0x06,         // Packet Automation Control
+		0x04, //0x04: disble address check; //0x06,         // Packet Automation Control
 		0x05,         // Packet Automation Control
 		0xFF,         // Device Address
 		0x00,         // Channel Number
@@ -238,8 +188,9 @@ void CC1101::reset() {
 	DEBUG_CC1101("Reset Done");
 }
 
-void CC1101::setDeviceAddress(uint8_t addr) {
-	writeReg(CC1101_ADDR, addr);
+void CC1101::setDeviceAddress(uint32_t addr) {
+	//writeReg(CC1101_ADDR, addr);
+	myAddress = addr;
 }
 
 void CC1101::setChannel(uint8_t channel) {

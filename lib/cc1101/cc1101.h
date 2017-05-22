@@ -139,8 +139,8 @@ enum messageType {
 };
 
 struct CCPacket {
-  uint8_t destinationAddress;
-  uint8_t sourceAddress;
+  uint32_t destinationAddress;
+  uint32_t sourceAddress;
   uint8_t payloadLength;
   uint8_t payload[63];
   uint8_t lqi;
@@ -151,6 +151,8 @@ struct CCPacket {
 class CC1101 {
 private:
 	unsigned long timeoutMs = 3000; //
+  uint32_t myAddress;
+
 public:
 	CC1101();
   void init();
@@ -161,7 +163,7 @@ public:
   void writeBurstReg(uint8_t regAddr, uint8_t buffer[], uint8_t len);
   void setCCregs();
 	void reset();
-	void setDeviceAddress(uint8_t addr);
+	void setDeviceAddress(uint32_t addr);
 	void setChannel(uint8_t channel);
 	void setCarrierFreq(uint8_t freq);
 	void setPowerDownState();
