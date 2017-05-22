@@ -35,6 +35,19 @@
 	#define wait_GDO0_low()  while(getGDO0state())
 #endif
 
+bool compareAddress(uint8_t a[], uint8_t b[]) {
+	for (uint8_t i = 0; i < 3; i++) {
+		if (a[i] != b[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool isBroadcastAddress(uint8_t addr[]) {
+	return (addr[0] == 0 && addr[1] == 0 && addr[2] == 0);
+}
+
 CC1101::CC1101() {
 
 }
@@ -108,7 +121,7 @@ void CC1101::setCCregs() {
 	uint8_t panStamp[47] = {
 		0x2E,         // GDO2 Output Pin Configuration
 		0x2E,         // GDO1 Output Pin Configuration
-		0x06,         // GDO0 Output Pin Configuration
+		0x06, //0x06,         // GDO0 Output Pin Configuration
 		0x07,         // RX FIFO and TX FIFO Thresholds
 		0xB5,         // Synchronization word, high byte
 		0x47,         // Synchronization word, low byte
@@ -188,9 +201,12 @@ void CC1101::reset() {
 	DEBUG_CC1101("Reset Done");
 }
 
-void CC1101::setDeviceAddress(uint32_t addr) {
+void CC1101::setDeviceAddress(uint8_t addr[]) {
 	//writeReg(CC1101_ADDR, addr);
-	myAddress = addr;
+	//myAddress = addr;
+	for (uint8_t i = 0; i < 3; i++) {
+		myAddress[i] = addr[i];
+	}
 }
 
 void CC1101::setChannel(uint8_t channel) {
@@ -262,16 +278,36 @@ void CC1101::setIdle() {
 
 uint8_t CC1101::receiveData(struct CCPacket *packet) {
 	//read RX fifo buffer
-	Serial.print("read RX fifo buffer: ");
+	//Serial.print("read RX fifo buffer: ");
 	uint8_t filledRXFifo = readReg(CC1101_RXBYTES, CC1101_STATUS_REGISTER);
-	DEBUG_CC1101(filledRXFifo);
+	//DEBUG_CC1101(filledRXFifo);
 
 	if ((filledRXFifo & 0x7F) && !(filledRXFifo & 0x80)) {
-		packet->payloadLength = readReg(CC1101_RXFIFO, READ_SINGLE) - 3; // -3 for dest source and message type
-		packet->destinationAddress = readReg(CC1101_RXFIFO, READ_SINGLE);
-		packet->sourceAddress = readReg(CC1101_RXFIFO, READ_SINGLE);
-		packet->type = (messageType)readReg(CC1101_RXFIFO, READ_SINGLE);
+		//packet->payloadLength = readReg(CC1101_RXFIFO, READ_SINGLE) - 3; // -3 for dest source and message type
+		packet->payloadLength = readReg(CC1101_RXFIFO, READ_SINGLE) - 8; // -3 for dest source and message type
+		for (uint8_t i = 0; i < 3; i++) {
+			packet->destinationAddress[i] = readReg(CC1101_RXFIFO, READ_SINGLE);
+		}
 
+		//is it for me?
+		if (!isBroadcastAddress(packet->destinationAddress)) {
+			for (uint8_t i = 0; i < 3; i++) {
+				if (packet->destinationAddress[i] != myAddress[i]) {
+					setIdle();
+					flushRxFifo();
+					setRxState();
+					DEBUG_CC1101("Nah...not for me");
+					return 0;
+				}
+			}
+		}
+
+		for (uint8_t i = 0; i < 3; i++) {
+			packet->sourceAddress[i] = readReg(CC1101_RXFIFO, READ_SINGLE);
+		}
+
+		packet->type = (messageType)readReg(CC1101_RXFIFO, READ_SINGLE);
+		packet->seq = readReg(CC1101_RXFIFO, READ_SINGLE);
 		for (uint8_t i = 0; i < packet->payloadLength; i++) {
 			packet->payload[i] = readReg(CC1101_RXFIFO, READ_SINGLE);
 		}
@@ -287,18 +323,31 @@ uint8_t CC1101::receiveData(struct CCPacket *packet) {
 	flushRxFifo(); //baru
 	setRxState();
 
+#ifdef DEBUGGING_CC1101
+	Serial.print("from: ");
+	for (int i = 0; i < 3; i++) {
+		Serial.print(packet->sourceAddress[i]);
+	}
+	Serial.println();
+	Serial.print("length: ");
+	Serial.println(packet->payloadLength);
+#endif
+
 	if (packet->payloadLength > 0) {
 		Serial.print("packet type: ");
 		Serial.println(packet->type);
 		//if !broadcast, send ACK
-		if (packet->destinationAddress != BROADCAST_ADDRESS && packet->type == DATA_PACKET) {
+		if (!isBroadcastAddress(packet->destinationAddress) && packet->type == DATA) {
 			Serial.println("Sending ack...");
 			struct CCPacket ackPacket;
-			ackPacket.destinationAddress = packet->sourceAddress;
-			ackPacket.sourceAddress = readReg(CC1101_ADDR, CC1101_CONFIG_REGISTER);
+			for (uint8_t i = 0; i < 3; i++) {
+				ackPacket.destinationAddress[i] = packet->sourceAddress[i];
+				ackPacket.sourceAddress[i] = myAddress[i];
+			}
+			//ackPacket.sourceAddress = readReg(CC1101_ADDR, CC1101_CONFIG_REGISTER);
 			ackPacket.payload[0] = ACK_RESPONSE;
 			ackPacket.payloadLength = 1;
-			ackPacket.type = ACK_PACKET;
+			ackPacket.type = ACK;
 			sendData(&ackPacket);
 		}
 	}
@@ -315,10 +364,17 @@ bool CC1101::sendData(struct CCPacket *packet) {
 
 	if (packet->payloadLength > 0) {
 		DEBUG_CC1101("Write to tx fifo buffer");
-		writeReg(CC1101_TXFIFO, packet->payloadLength + 3); // + 2 for destination, ender address, message type
-		writeReg(CC1101_TXFIFO, packet->destinationAddress);
-		writeReg(CC1101_TXFIFO, packet->sourceAddress); //sender address
+		//writeReg(CC1101_TXFIFO, packet->payloadLength + 3); // + 3 for destination, ender address, message type
+		writeReg(CC1101_TXFIFO, packet->payloadLength + 8); // + 8 for destination, ender address, message type
+		for (uint8_t i = 0; i < 3; i++) {
+			writeReg(CC1101_TXFIFO, packet->destinationAddress[i]);
+		}
+		for (uint8_t i = 0; i < 3; i++) {
+			writeReg(CC1101_TXFIFO, packet->sourceAddress[i]); //sender address
+		}
+
 		writeReg(CC1101_TXFIFO, (uint8_t)packet->type);
+		writeReg(CC1101_TXFIFO, 1); //sementara seq number
 		for (uint8_t i = 0; i < packet->payloadLength; i++) {
 			writeReg(CC1101_TXFIFO, packet->payload[i]);
 		}
@@ -339,8 +395,8 @@ bool CC1101::sendData(struct CCPacket *packet) {
 		DEBUG_CC1101("Set to RX state");
 		setRxState();
 
-		if (packet->destinationAddress == BROADCAST_ADDRESS
-			|| packet->type == ACK_PACKET) { // broadcast, then fire and forget
+		if (isBroadcastAddress(packet->destinationAddress)
+			|| packet->type == ACK) { // broadcast, then fire and forget
 			DEBUG_CC1101("Broadcast/ack done");
 			return true;
 		}
@@ -352,7 +408,7 @@ bool CC1101::sendData(struct CCPacket *packet) {
 					struct CCPacket ackPacket;
 					receiveData(&ackPacket);
 					//setRxState();
-					if (ackPacket.type == ACK_PACKET) {
+					if (ackPacket.type == ACK) {
 						if (ackPacket.payload[0] == ACK_RESPONSE) {
 							DEBUG_CC1101("ACK received");
 							return true;

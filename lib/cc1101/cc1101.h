@@ -134,24 +134,35 @@
 #define NAK_RESPONSE 0x15
 
 enum messageType {
-  ACK_PACKET = 0,
-  DATA_PACKET
+  ACK = 0,
+  DATA,
+  SYN,
+  RST,
+  FIN
 };
 
+
+/*
+
+| frame length | destination addr | my addr | message type | seq   | payload |
+      8 bit         24 bit           24 bit        8 bit     8 bit
+
+*/
 struct CCPacket {
-  uint32_t destinationAddress;
-  uint32_t sourceAddress;
+  uint8_t destinationAddress[3];
+  uint8_t sourceAddress[3];
   uint8_t payloadLength;
   uint8_t payload[63];
   uint8_t lqi;
   uint8_t rssi;
   messageType type;
+  uint8_t seq;
 };
 
 class CC1101 {
 private:
 	unsigned long timeoutMs = 3000; //
-  uint32_t myAddress;
+  uint8_t myAddress[3];
 
 public:
 	CC1101();
@@ -163,7 +174,7 @@ public:
   void writeBurstReg(uint8_t regAddr, uint8_t buffer[], uint8_t len);
   void setCCregs();
 	void reset();
-	void setDeviceAddress(uint32_t addr);
+	void setDeviceAddress(uint8_t addr[]);
 	void setChannel(uint8_t channel);
 	void setCarrierFreq(uint8_t freq);
 	void setPowerDownState();
@@ -177,6 +188,8 @@ public:
   void flushTxFifo();
 	void flushRxFifo();
 	void setIdle();
+
+  //uint32_t getDeviceAddress() { return myAddress; }
 };
 
 #endif
