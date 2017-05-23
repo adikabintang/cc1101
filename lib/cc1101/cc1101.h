@@ -152,7 +152,7 @@ struct CCPacket {
   uint8_t destinationAddress[3];
   uint8_t sourceAddress[3];
   uint8_t payloadLength;
-  uint8_t payload[63];
+  uint8_t payload[53];
   uint8_t lqi;
   uint8_t rssi;
   messageType type;

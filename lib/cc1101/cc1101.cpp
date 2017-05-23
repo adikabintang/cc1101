@@ -333,24 +333,24 @@ uint8_t CC1101::receiveData(struct CCPacket *packet) {
 	Serial.println(packet->payloadLength);
 #endif
 
-	if (packet->payloadLength > 0) {
-		Serial.print("packet type: ");
-		Serial.println(packet->type);
-		//if !broadcast, send ACK
-		if (!isBroadcastAddress(packet->destinationAddress) && packet->type == DATA) {
-			Serial.println("Sending ack...");
-			struct CCPacket ackPacket;
-			for (uint8_t i = 0; i < 3; i++) {
-				ackPacket.destinationAddress[i] = packet->sourceAddress[i];
-				ackPacket.sourceAddress[i] = myAddress[i];
-			}
-			//ackPacket.sourceAddress = readReg(CC1101_ADDR, CC1101_CONFIG_REGISTER);
-			ackPacket.payload[0] = ACK_RESPONSE;
-			ackPacket.payloadLength = 1;
-			ackPacket.type = ACK;
-			sendData(&ackPacket);
-		}
-	}
+	// if (packet->payloadLength > 0) {
+	// 	Serial.print("packet type: ");
+	// 	Serial.println(packet->type);
+	// 	//if !broadcast, send ACK
+	// 	if (!isBroadcastAddress(packet->destinationAddress) && packet->type == DATA) {
+	// 		Serial.println("Sending ack...");
+	// 		struct CCPacket ackPacket;
+	// 		for (uint8_t i = 0; i < 3; i++) {
+	// 			ackPacket.destinationAddress[i] = packet->sourceAddress[i];
+	// 			ackPacket.sourceAddress[i] = myAddress[i];
+	// 		}
+	// 		//ackPacket.sourceAddress = readReg(CC1101_ADDR, CC1101_CONFIG_REGISTER);
+	// 		ackPacket.payload[0] = (uint8_t)millis();
+	// 		ackPacket.payloadLength = 1;
+	// 		ackPacket.type = ACK;
+	// 		sendData(&ackPacket);
+	// 	}
+	// }
 
 	return packet->payloadLength;
 }
@@ -374,7 +374,7 @@ bool CC1101::sendData(struct CCPacket *packet) {
 		}
 
 		writeReg(CC1101_TXFIFO, (uint8_t)packet->type);
-		writeReg(CC1101_TXFIFO, 1); //sementara seq number
+		writeReg(CC1101_TXFIFO, packet->seq);
 		for (uint8_t i = 0; i < packet->payloadLength; i++) {
 			writeReg(CC1101_TXFIFO, packet->payload[i]);
 		}
@@ -395,31 +395,32 @@ bool CC1101::sendData(struct CCPacket *packet) {
 		DEBUG_CC1101("Set to RX state");
 		setRxState();
 
-		if (isBroadcastAddress(packet->destinationAddress)
-			|| packet->type == ACK) { // broadcast, then fire and forget
-			DEBUG_CC1101("Broadcast/ack done");
-			return true;
-		}
-		else { //wait for ACK
-			unsigned long nowMs = millis();
-			while (millis() - nowMs <= timeoutMs) {
-				if (digitalRead(GDO0)) {
-					wait_GDO0_low();
-					struct CCPacket ackPacket;
-					receiveData(&ackPacket);
-					//setRxState();
-					if (ackPacket.type == ACK) {
-						if (ackPacket.payload[0] == ACK_RESPONSE) {
-							DEBUG_CC1101("ACK received");
-							return true;
-						}
-					}
-
-				}
-			}
-			DEBUG_CC1101("Timeout in waiting for ACK");
-			return false;
-		}
+		// if (isBroadcastAddress(packet->destinationAddress)
+		// 	|| packet->type == ACK) { // broadcast, then fire and forget
+		// 	DEBUG_CC1101("Broadcast/ack done");
+		// 	return true;
+		// }
+		// else { //wait for ACK
+		// 	unsigned long nowMs = millis();
+		// 	while (millis() - nowMs <= timeoutMs) {
+		// 		if (digitalRead(GDO0)) {
+		// 			wait_GDO0_low();
+		// 			struct CCPacket ackPacket;
+		// 			receiveData(&ackPacket);
+		// 			//setRxState();
+		// 			if (ackPacket.type == ACK) {
+		// 				//if (ackPacket.payload[0] == ACK_RESPONSE) {
+		// 				DEBUG_CC1101("ACK received");
+		// 				return true;
+		// 				//}
+		// 			}
+		//
+		// 		}
+		// 	}
+		// 	DEBUG_CC1101("Timeout in waiting for ACK");
+		// 	return false;
+		// }
+		return true;
 	}
 	else {
 		DEBUG_CC1101("packet length must not be <= 0");

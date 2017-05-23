@@ -1,8 +1,13 @@
 #include <Arduino.h>
 #include <cc1101.h>
+#include <AmbroSimpleTCP.h>
 
 CC1101 cc1101;
 bool signalFlag = false;
+uint8_t data[1] = {0};
+uint8_t i = 0;
+AmbroSimpleTCP ambroTCP(&cc1101);
+AmbroTCPPacket ambroPacket;
 
 void ISRSignalFlag() {
   signalFlag  = true;
@@ -17,12 +22,6 @@ void setup() {
   cc1101.setCCregs();
   uint8_t addr[3] = {2, 1, 0};
   cc1101.setDeviceAddress(addr);
-  Serial.print("CC1101_PARTNUM "); //cc1101=0
-  Serial.println(cc1101.readReg(CC1101_PARTNUM, CC1101_STATUS_REGISTER));
-  Serial.print("CC1101_VERSION "); //cc1101=4
-  Serial.println(cc1101.readReg(CC1101_VERSION, CC1101_STATUS_REGISTER));
-  Serial.print("CC1101_MARCSTATE ");
-  Serial.println(cc1101.readReg(CC1101_MARCSTATE, CC1101_STATUS_REGISTER) & 0x1f);
 
   attachInterrupt(digitalPinToInterrupt(2), ISRSignalFlag, FALLING);
 
@@ -37,37 +36,15 @@ void setup() {
   Serial.println();
 }
 
-uint8_t data[1] = {0};
-uint8_t i = 0;
-
 void loop() {
-  //char data[2] = {8, 9};
-  //packet.destinationAddress = BROADCAST_ADDRESS;
-  //packet.destinationAddress = 0x03;
-  Serial.println("Sending...");
-  Serial.print("destination: ");
-  for (uint8_t i = 0; i < 3; i++) {
-    //packet.destinationAddress[i] = i;
-    packet.destinationAddress[i] = 0;
-    Serial.print(packet.destinationAddress[i]);
+  if (signalFlag) {
+    if (ambroTCP.ambroReceiveData(&ambroPacket)) {
+      Serial.print("data: ");
+      Serial.println(ambroPacket.payload);
+    }
+    else {
+      Serial.println("no data");
+    }
+    signalFlag = false;
   }
-  
-  Serial.println();
-  packet.payload[0] = i++;
-  //packet.payloadLength = sizeof(packet.payload) / sizeof(packet.payload[0]);
-  packet.payloadLength = 1;
-  packet.type = DATA;
-  Serial.print("from: ");
-  uint8_t addr[3] = {2, 1, 0};
-  for (uint8_t i = 0; i < 3; i++) {
-    packet.sourceAddress[i] = addr[i];
-    Serial.print(packet.sourceAddress[i]);
-  }
-  Serial.println();
-  //packet.sourceAddress = cc1101.readReg(CC1101_ADDR, CC1101_CONFIG_REGISTER);
-  //cc1101.sendData(0, data, 1);
-  if (cc1101.sendData(&packet)) {
-    Serial.println("Data sent successfully");
-  }
-  delay(1500);
 }
